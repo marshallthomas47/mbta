@@ -1,0 +1,306 @@
+---
+title: "MBTA_orange_line"
+author: "Marshall Thomas"
+date: "September 27, 2017"
+output: html_document
+---
+
+```{r}
+library(httr)
+library(jsonlite)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+options(stringsAsFactors = FALSE)
+
+#make ggplot2 better
+theme_basic = theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.border = element_rect(colour = "black", size = 1),
+        axis.ticks.length = unit(0.2, "lines"),
+        axis.text.x = element_text(margin=margin(10,5,5,5,"pt")),
+        axis.text.y = element_text(margin=margin(5,10,5,5,"pt")))
+theme_set(theme_basic)
+```
+
+```{r}
+URL_query = function(from,to,start_datetime,finish_datetime){
+  start_time = as.integer(as.POSIXct((start_datetime), tz="America/New_York"))
+  finish_time = as.integer(as.POSIXct((finish_datetime), tz="America/New_York"))
+  url_start = "http://realtime.mbta.com/developer/api/v2.1/traveltimes?api_key="
+  key = "wX9NwuHnZU2ToO7GmGR9uw"
+  url_int = "&to_datetime="
+  travel_times = c()
+  departure_times = c()
+  benchmark_times = c()
+
+  while(start_time<finish_time){
+    end = start_time + 86400
+    request_url = paste(url_start, key, "&format=json&from_stop=", from, "&to_stop=", to,
+    "&from_datetime=", start_time, "&to_datetime=", end, sep = "")
+    dat = fromJSON(request_url)
+    departures = as.numeric(dat$travel_times$dep_dt)
+    times = as.numeric(dat$travel_times$travel_time_sec)
+    benchmarks = as.numeric(dat$travel_times$benchmark_travel_time_sec)
+    travel_times = c(travel_times, times)
+    departure_times = c(departure_times, departures)
+    benchmark_times = c(benchmark_times, benchmarks)
+    start_time = end
+  }
+
+  date = as.POSIXct(departure_times, tz ="America/New_York", origin ="1970-01-01")
+  just_date = as.Date(date, tz ="America/New_York")
+  time = strftime(date, tz="America/New_York", format="%H:%M:%S")
+  day = weekdays(just_date)
+  compiled_times = cbind.data.frame(date,day,just_date,time,travel_times, benchmark_times)
+  return(compiled_times)
+}
+```
+
+#Queries for different train lines
+```{r}
+# Orange line southbound (oak grove to green street)
+orange_SB = URL_query("70036","70002","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(orange_SB, "OrangeLineSouthBound")
+# Orange line northbound (forest hills to malden center)
+orange_NB = URL_query("70001","70035","2016-07-01 00:00:00","2017-9-26 00:00:00")
+write.csv(orange_NB, "OrangeLineNorthBound")
+# Blue line westbound 
+blue_WB = URL_query("70060","70039","2016-07-01 00:00:00","2017-09-26 00:00:00")
+write.csv(blue_WB, "BlueLineWestBound")
+# Blue line eastbound
+blue_EB = URL_query("70038","70058","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(blue_EB, "BlueLineEastBound")
+# Red line southbound to Ashmont (Alewife to Shawmut)
+red_SB_Ash = URL_query("70061","70091","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(red_SB_Ash, "AshmontSouthBound")
+# Red line southbound to Braintree (Alewife to Quincy Adams)
+red_SB_Brain = URL_query("70061","70103","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(red_SB_Brain, "BraintreeSouthBound")
+# Red line northbound from Ashmont (Ashmont to Davis)
+red_NB_Ash = URL_query("70094","70064","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(red_NB_Ash, "AshmontNorthBound")
+# Red line northbound from Braintree (Braintree to Davis)
+red_NB_Brain = URL_query("70105","70064","2016-07-01 00:00:00","2017-09-27 00:00:00")
+write.csv(red_NB_Brain, "BraintreeNorthBound")
+
+```
+
+
+
+```{r}
+rush_hourify = function(dataset){
+  dataset$weekdays = dataset$day != "Saturday" & dataset$day != "Sunday"
+  dataset$rushtime = dataset$time > "06:00:00" & dataset$time < "10:00:00"
+  dataset$morning_peak = dataset$rushtime & dataset$weekdays
+  dataset$PMrush = dataset$time > "16:00:00" & dataset$time < "20:00:00" 
+  dataset$afternoon_peak = dataset$PMrush & dataset$weekdays
+  dataset = subset(dataset, dataset$morning_peak | dataset$afternoon_peak)
+  return(dataset)}
+
+month_subset = function(dataset){
+  dataset$Months2017 = dataset$just_date > "2017-06-30" & 
+  dataset$just_date < "2017-10-01"
+  dataset$Months2016 = dataset$just_date > "2016-06-30" & 
+  dataset$just_date < "2016-10-01"
+
+  datanew = subset(dataset, (dataset$Months2017 | dataset$Months2016))
+  datanew$range = ifelse(datanew$Months2017, "July-Sept 2017", "July-Sept 2016")
+  return(datanew)
+}
+
+processor = function(dataset){
+  step1 = rush_hourify(dataset)
+  step1$delay = step1$travel_times > (step1$benchmark_times + 300)
+  step2 = month_subset(step1)
+  return(step2)
+}
+
+delaycalc = function(dataset, delaytime){
+  dataset$delayed = dataset$travel_times > (dataset$benchmark_times + delaytime)
+  delays = dataset %>%
+  group_by(just_date) %>% 
+  summarise (ndelays = sum(delayed))
+  delays$daterange = ifelse(delays$just_date > "2017-01-01","July-Sept 2017","July-Sept 2016")
+  return(delays)
+}
+
+AMtrainscalc = function(dataset){
+  dataset_morning = subset(dataset, dataset$morning_peak)
+  Ntrains = dataset_morning %>% group_by(just_date) %>% 
+    summarise (counts = length(travel_times))
+  Ntrains$daterange = ifelse(Ntrains$just_date > "2017-01-01",
+                             "July-Sept 2017","July-Sept 2016")
+  return(Ntrains)
+}
+
+```
+
+# Plotting functions
+```{r}
+violinplot = function(dataset, title){
+  plot = ggplot(data = dataset, aes(x = range, y = travel_times)) +
+  geom_violin() +
+  ylab("Travel time (seconds)") +
+  xlab("Date range") +
+  ggtitle(title)
+  return(plot)
+}
+
+boxplot = function(dataset, title){
+  plot = ggplot(data = dataset, aes(x = daterange, y = ndelays)) +
+  geom_boxplot() +
+  ylab("Number of delays (>5 min) per day") +
+  xlab("Date range") +
+  ggtitle(title)
+  return(plot)
+}
+
+ntrainsplot = function(dataset, title){
+  plot = ggplot(data = dataset, aes(x = daterange, y = counts)) +
+  geom_boxplot() +
+  ylab("Number of trains per morning") +
+  xlab("Date range") +
+  ggtitle(title)
+  return(plot)
+}
+  
+```
+
+
+# Data for Orange Line Southbound (Oak Grove to Green St)
+```{r}
+orange_SB_JulySept = processor(orange_SB)
+orange_SB_delays = delaycalc(orange_SB_JulySept, 300)
+orange_SB_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+orange_SB_ntrainsAM = AMtrainscalc(orange_SB_JulySept)
+orange_SB_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_OrangeSB = violinplot(orange_SB_JulySept, "Orange line southbound")
+delay_OrangeSB = boxplot(orange_SB_delays, "Orange line southbound")
+```
+
+# Data for Orange Line Northbound (Forest Hills to Malden Center)
+```{r}
+orange_NB_JulySept = processor(orange_NB)
+orange_NB_delays = delaycalc(orange_NB_JulySept, 300)
+orange_NB_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+orange_NB_ntrainsAM = AMtrainscalc(orange_NB_JulySept)
+orange_NB_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_OrangeNB = violinplot(orange_NB_JulySept, "Orange line northbound")
+delay_OrangeNB = boxplot(orange_NB_delays, "Orange line northbound")
+```
+
+# Data for Blue Line Westbound (Wonderland to Government Center)
+```{r}
+blue_WB_JulySept = processor(blue_WB)
+blue_WB_delays = delaycalc(blue_WB_JulySept, 300)
+blue_WB_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+blue_WB_ntrainsAM = AMtrainscalc(blue_WB_JulySept)
+blue_WB_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_BlueWB = violinplot(blue_WB_JulySept, "Blue line westbound")
+delay_BlueWB = boxplot(blue_WB_delays, "Blue line westbound")
+```
+
+# Data for Blue Line Eastbound (Bowdoin to Revere Beach)
+```{r}
+blue_EB_JulySept = processor(blue_EB)
+blue_EB_delays = delaycalc(blue_EB_JulySept, 300)
+blue_EB_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+blue_EB_ntrainsAM = AMtrainscalc(blue_EB_JulySept)
+blue_EB_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_BlueEB = violinplot(blue_EB_JulySept, "Blue line eastbound")
+delay_BlueEB = boxplot(blue_EB_delays, "Blue line eastbound")
+```
+
+# Data for Red Line Southbound (Alewife to Shawmut)
+```{r}
+red_SB_Ash_JulySept = processor(red_SB_Ash)
+red_SB_Ash_delays = delaycalc(red_SB_Ash_JulySept, 300)
+red_SB_Ash_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+red_SB_Ash_ntrainsAM = AMtrainscalc(red_SB_Ash_JulySept)
+red_SB_Ash_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_RedSB_Ash = violinplot(red_SB_Ash_JulySept, "Ashmont southbound")
+delay_RedSB_Ash = boxplot(red_SB_Ash_delays, "Ashmont southbound")
+```
+
+# Data for Red Line Southbound (Alewife to Quincy Adams)
+```{r}
+red_SB_Brain_JulySept = processor(red_SB_Brain)
+red_SB_Brain_delays = delaycalc(red_SB_Brain_JulySept, 300)
+red_SB_Brain_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+red_SB_Brain_ntrainsAM = AMtrainscalc(red_SB_Brain_JulySept)
+red_SB_Brain_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_RedSB_Brain = violinplot(red_SB_Brain_JulySept, "Braintree southbound")
+delay_RedSB_Brain = boxplot(red_SB_Brain_delays, "Braintree southbound")
+```
+
+# Data for Red Line Northbound (Ashmont to Davis)
+```{r}
+red_NB_Ash_JulySept = processor(red_NB_Ash)
+red_NB_Ash_delays = delaycalc(red_NB_Ash_JulySept, 300)
+red_NB_Ash_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+red_NB_Ash_ntrainsAM = AMtrainscalc(red_NB_Ash_JulySept)
+red_NB_Ash_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_RedNB_Ash = violinplot(red_NB_Ash_JulySept, "Ashmont northbound")
+delay_RedNB_Ash = boxplot(red_NB_Ash_delays, "Ashmont northbound")
+```
+
+# Data for Red Line Northbound (Braintree to Davis)
+```{r}
+red_NB_Brain_JulySept = processor(red_NB_Brain)
+red_NB_Brain_delays = delaycalc(red_NB_Brain_JulySept, 300)
+red_NB_Brain_delays %>% group_by(daterange) %>% summarise (mean(ndelays))
+red_NB_Brain_ntrainsAM = AMtrainscalc(red_NB_Brain_JulySept)
+red_NB_Brain_ntrainsAM %>%  group_by(daterange) %>% summarise (mean(counts))
+
+# Plots go here
+violin_RedNB_Brain = violinplot(red_NB_Brain_JulySept, "Braintree northbound")
+delay_RedNB_Brain = boxplot(red_NB_Brain_delays, "Braintree northbound")
+```
+
+
+```{r}
+library(gridExtra)
+grid.arrange(violin_BlueEB,violin_BlueWB, violin_OrangeSB, violin_OrangeNB, 
+             violin_RedSB_Ash, violin_RedNB_Ash, 
+             violin_RedSB_Brain, violin_RedSB_Brain, 
+             top = "Average travel times", ncol=2)
+
+grid.arrange(delay_BlueEB, delay_BlueWB, delay_OrangeSB, delay_OrangeNB, 
+             delay_RedSB_Ash, delay_RedNB_Ash, 
+             delay_RedSB_Brain, delay_RedNB_Brain,
+             top = "Delays of more than 5 minutes", ncol=2)
+```
+
+# Orange line delays deep dive
+```{r}
+# Compare delays with last year
+orange_SB_delays %>% group_by(daterange) %>% 
+  do(data.frame(t(quantile(.$ndelays, probs = seq(0,1,0.1)))))
+orange_NB_delays %>% group_by(daterange) %>% 
+  do(data.frame(t(quantile(.$ndelays, probs = seq(0,1,0.1)))))
+
+trains_SB_orange = ntrainsplot(orange_SB_ntrainsAM, "Orange line southbound")
+trains_NB_orange = ntrainsplot(orange_NB_ntrainsAM, "Orange line northbound")
+
+grid.arrange(delay_OrangeSB, delay_OrangeNB, 
+             trains_SB_orange, trains_NB_orange,
+             violin_OrangeSB, violin_OrangeNB,
+             top = "Summary of orange line data (peak times only)", ncol=2)
+```
+
