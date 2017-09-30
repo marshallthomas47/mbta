@@ -2,7 +2,7 @@
 title: "MBTA Calculations"
 author: "Marshall Thomas"
 date: "September 30, 2017"
-output: html_document
+output: github_document
 ---
 
 ```{r include=FALSE}
