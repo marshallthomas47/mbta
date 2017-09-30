@@ -1,0 +1,78 @@
+---
+title: "MBTA_LoadData"
+author: "Marshall Thomas"
+date: "September 29, 2017"
+output: html_document
+---
+```{r echo=FALSE}
+# Load libraries
+library(jsonlite)
+library(lubridate)
+options(stringsAsFactors = FALSE)
+```
+
+
+```{r echo=FALSE}
+# Function for queries from data API
+URL_query = function(from,to,start_datetime,finish_datetime){
+  start_time = as.integer(as.POSIXct((start_datetime), tz="America/New_York"))
+  finish_time = as.integer(as.POSIXct((finish_datetime), tz="America/New_York"))
+  url_start = "http://realtime.mbta.com/developer/api/v2.1/traveltimes?api_key="
+  key = "wX9NwuHnZU2ToO7GmGR9uw"
+  url_int = "&to_datetime="
+  travel_times = c()
+  departure_times = c()
+  benchmark_times = c()
+
+  while(start_time<finish_time){
+    end = start_time + 86400
+    request_url = paste(url_start, key, "&format=json&from_stop=", from, "&to_stop=", to,
+    "&from_datetime=", start_time, "&to_datetime=", end, sep = "")
+    dat = fromJSON(request_url)
+    departures = as.numeric(dat$travel_times$dep_dt)
+    times = as.numeric(dat$travel_times$travel_time_sec)
+    benchmarks = as.numeric(dat$travel_times$benchmark_travel_time_sec)
+    travel_times = c(travel_times, times)
+    departure_times = c(departure_times, departures)
+    benchmark_times = c(benchmark_times, benchmarks)
+    start_time = end
+  }
+
+  date = as.POSIXct(departure_times, tz ="America/New_York", origin ="1970-01-01")
+  just_date = as.Date(date, tz ="America/New_York")
+  time = strftime(date, tz="America/New_York", format="%H:%M:%S")
+  day = weekdays(just_date)
+  compiled_times = cbind.data.frame(date,day,just_date,time,travel_times, benchmark_times)
+  return(compiled_times)
+}
+```
+
+```{r echo=FALSE}
+#Queries for different train lines
+start = "2016-07-01 00:00:00"
+end = "2017-09-30 00:00:00"
+# Orange line southbound (oak grove to green street)
+orange_SB = URL_query("70036","70002", start, end)
+write.csv(orange_SB, "OrangeLineSouthBound")
+# Orange line northbound (forest hills to malden center)
+orange_NB = URL_query("70001","70035", start, end)
+write.csv(orange_NB, "OrangeLineNorthBound")
+# Blue line westbound 
+blue_WB = URL_query("70060","70039", start, end)
+write.csv(blue_WB, "BlueLineWestBound")
+# Blue line eastbound
+blue_EB = URL_query("70038","70058", start, end)
+write.csv(blue_EB, "BlueLineEastBound")
+# Red line southbound to Ashmont (Alewife to Shawmut)
+red_SB_Ash = URL_query("70061","70091", start, end)
+write.csv(red_SB_Ash, "AshmontSouthBound")
+# Red line southbound to Braintree (Alewife to Quincy Adams)
+red_SB_Brain = URL_query("70061","70103", start, end)
+write.csv(red_SB_Brain, "BraintreeSouthBound")
+# Red line northbound from Ashmont (Ashmont to Davis)
+red_NB_Ash = URL_query("70094","70064", start, end)
+write.csv(red_NB_Ash, "AshmontNorthBound")
+# Red line northbound from Braintree (Braintree to Davis)
+red_NB_Brain = URL_query("70105","70064", start, end)
+write.csv(red_NB_Brain, "BraintreeNorthBound")
+```
