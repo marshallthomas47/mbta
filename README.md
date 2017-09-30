@@ -6,4 +6,4 @@ This is an analysis of MBTA data from July to September of 2016 and 2017. The pu
 
 - The analysis is written in R. There is a separate script (MBTA_LoadData.Rmd) that makes the API calls and stores the data.
 - The actual analysis is in MBTA_calculations.Rmd.
-- You can view a summary of the results in MTBA_calculations.html.
+- You can view a summary of the results in MTBA_calculations.md.
