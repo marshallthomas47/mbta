@@ -1,0 +1,191 @@
+---
+title: "Orange Line Dwell Times"
+author: "Marshall Thomas"
+date: "9/30/2017"
+output: github_document
+---
+
+```{r include=FALSE}
+# Load libraries
+library(jsonlite)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+options(stringsAsFactors = FALSE)
+
+#make ggplot2 better
+theme_basic = theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.border = element_rect(colour = "black", size = 1),
+        axis.ticks.length = unit(0.2, "lines"),
+        axis.text.x = element_text(margin=margin(10,5,5,5,"pt")),
+        axis.text.y = element_text(margin=margin(5,10,5,5,"pt")))
+theme_set(theme_basic)
+
+```
+
+```{r echo=FALSE}
+# Function for queries from data API
+Dwell_query = function(platform,start_datetime,finish_datetime){
+  start_time = as.integer(as.POSIXct((start_datetime), tz="America/New_York"))
+  finish_time = as.integer(as.POSIXct((finish_datetime), tz="America/New_York"))
+  url_start = "http://realtime.mbta.com/developer/api/v2.1/dwells?api_key="
+  key = "wX9NwuHnZU2ToO7GmGR9uw"
+  url_int = "&to_datetime="
+  arrival_times = c()
+  dwell_times = c()
+
+  while(start_time<finish_time){
+    end = start_time + 86400
+    request_url = paste(url_start, key, "&format=json&stop=", platform,
+    "&from_datetime=", start_time, "&to_datetime=", end, sep = "")
+    dat = fromJSON(request_url)
+    arrival = as.numeric(dat$dwell_times$arr_dt)
+    times = as.numeric(dat$dwell_times$dwell_time_sec)
+    dwell_times = c(dwell_times, times)
+    arrival_times = c(arrival_times, arrival)
+    start_time = end
+  }
+
+  date = as.POSIXct(arrival_times, tz ="America/New_York", origin ="1970-01-01")
+  just_date = as.Date(date, tz ="America/New_York")
+  time = strftime(date, tz="America/New_York", format="%H:%M:%S")
+  day = weekdays(just_date)
+  compiled_times = cbind.data.frame(date,day,just_date,time,dwell_times)
+  return(compiled_times)
+}
+```
+
+```{r echo = FALSE}
+# Function that grabs only morning rush hour data
+rush_hourify = function(dataset){
+  dataset$weekdays = dataset$day != "Saturday" & dataset$day != "Sunday"
+  dataset$rushtime = dataset$time > "06:00:00" & dataset$time < "10:00:00"
+  dataset$morning_peak = dataset$rushtime & dataset$weekdays
+  dataset$PMrush = dataset$time > "16:00:00" & dataset$time < "20:00:00" 
+  dataset$afternoon_peak = dataset$PMrush & dataset$weekdays
+  dataset = subset(dataset, dataset$morning_peak | dataset$afternoon_peak)
+  return(dataset)}
+```
+
+
+```{r echo = FALSE}
+#Queries parameters for stations
+
+
+get_dwells = function(Nstop){
+  start17 = "2017-07-01 00:00:00"
+  end17 = "2017-10-01 00:00:00"
+  start16 = "2016-07-01 00:00:00"
+  end16 = "2016-10-01 00:00:00"
+  train_inbound_2017 = Dwell_query(Nstop, start17, end17)
+  train_inbound_2016 = Dwell_query(Nstop, start16, end16)
+  train_inbound = rbind(train_inbound_2016,train_inbound_2017)
+  train_inbound$stop_number = Nstop
+  train_inbound$range = ifelse(train_inbound$just_date > "2017-01-10", 
+                                  "July-Sept 2017", "July-Sept 2016")
+  train_inbound_RH = rush_hourify(train_inbound)  
+  return(train_inbound_RH)
+}
+```
+
+```{r echo = FALSE}
+# Query all inbound stations (up to downtown crossing) on orange line southbound
+run_dwell_queries = function(){
+  alldwells = get_dwells("70036")
+  alldwells = rbind(alldwells, get_dwells("70034"))
+  alldwells = rbind(alldwells, get_dwells("70032"))
+  alldwells = rbind(alldwells, get_dwells("70278"))
+  alldwells = rbind(alldwells, get_dwells("70030"))
+  alldwells = rbind(alldwells, get_dwells("70028"))
+  alldwells = rbind(alldwells, get_dwells("70026"))
+  alldwells = rbind(alldwells, get_dwells("70024"))
+  alldwells = rbind(alldwells, get_dwells("70022"))
+  return(alldwells)
+}
+```
+
+```{r echo = FALSE}
+# Load data from a .csv, otherwise, run the query and save the data
+if(file.exists("inbound_dwell_times")){
+  dwells_inbound = read.csv("inbound_dwell_times")
+} else{
+  dwells_inbound = run_dwell_queries
+}
+```
+
+
+## Summary
+
+Here, I analyzed the dwell times on the southbound branch of the orange line,
+ from Malden Center to State Street. I hypothesized that the delays in 2017 
+ could be due to overcrowding. If this were the case, we would have longer platform 
+ delays, because when there is a crowd on the platform it generally takes longer
+ for the  doors to close. I planned to compare crowding on the southbound
+ inbound  trains in the morning and afternoon, because  delays in the inbound 
+ trains could be due to anything (mechanical failures, crowding, etc.), but 
+ crowding would be much worse in the morning, when most commuters are heading 
+ towards the city. Thus, if crowding were the cause of the slower service in 
+ 2017, we would expect to see longer dwell times in the morning inbound commute 
+ in 2017 relative to 2016. However, there is no major difference in dwell times.
+ 
+```{r echo = FALSE}
+# Calculate mean dwell times in the morning and afternoon, in 2016 and 2017
+mean_dwells = dwells_inbound %>%
+  group_by(range, afternoon_peak, stop_number) %>% 
+  summarise (mediandwell = median(dwell_times), meandwell = mean(dwell_times))
+
+dwells_morning = subset(dwells_inbound, dwells_inbound$morning_peak & 
+                          dwells_inbound$stop_number !="70036")
+dwells_afternoon = subset(dwells_inbound, dwells_inbound$afternoon_peak & 
+                          dwells_inbound$stop_number !="70036")
+
+morning_dwells = dwells_morning %>%
+  group_by(range) %>% 
+  summarise (mediandwell = median(dwell_times), meandwell = mean(dwell_times))
+
+afternoon_dwells = dwells_afternoon %>%
+  group_by(range) %>% 
+  summarise (mediandwell = median(dwell_times), meandwell = mean(dwell_times))
+
+```
+
+### Morning dwell times - 2016 vs. 2017
+
+- This includes all stations from Malden Center to State Street
+- Oak Grove was excluded because the trains wait much longer there (however, 
+including Oak Grove does not affect the conclusion of the analysis)
+- This is focused on the morning peak (6:00 - 10:00 AM)
+- This compares July-Sept 2016 with July-Sept 2017
+
+```{r echo = FALSE}
+# Plot the average dwell times in the morning
+ggplot(dwells_morning, aes(x = range, y = dwell_times)) +
+  geom_boxplot() +
+  scale_y_continuous(trans = "log2", breaks = c(16, 64, 256, 1024, 4096), 
+                     limits = c(12,4096)) +
+  ylab("Dwell time (seconds)") +
+  xlab("Date range") +
+  ggtitle("Orange line southbound - morning rush")
+```
+
+### Afternoon dwell times - 2016 vs. 2017
+
+- This includes all stations from Malden Center to State Street
+- Oak Grove was excluded because the trains wait much longer there (however, 
+including Oak Grove does not affect the conclusion of the analysis)
+- This is focused on the afternoon peak (4:00 - 8:00 PM)
+- This compares July-Sept 2016 with July-Sept 2017
+
+```{r echo = FALSE}
+# Plot the average dwell times in the afternoon
+ggplot(dwells_afternoon, aes(x = range, y = dwell_times)) +
+  geom_boxplot() +
+  scale_y_continuous(trans = "log2", breaks = c(16, 64, 256, 1024, 4096), 
+                     limits = c(12,4096)) +
+  ylab("Dwell time (seconds)") +
+  xlab("Date range") +
+  ggtitle("Orange line southbound - afternoon rush")
+```
+
