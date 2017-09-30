@@ -5,13 +5,14 @@ This is an analysis of MBTA data from July to September of 2016 and 2017. The pu
 ### Conclusions
 
 - The orange line, in particular, is running slower, with more delays,
-in 2017 than in 2016.
+in 2017 than in 2016. [See this analysis for details.](https://github.com/marshallthomas47/mbta/blob/master/MBTA_calculations.md)
 - These increases in delays do **not** appear to be due to platform crowding,
-as there does not seem to be a major increase in dwell times on the platforms.
+as there does not seem to be a major increase in dwell times on the platforms
+from 2016 to 2017. [See this analysis for details.](https://github.com/marshallthomas47/mbta/blob/master/MBTA_dwells.md)
 - My best guess is that the reliability of the system is dropping, suggesting
 a need for repairs.
 - The trains also may have new speed restrictions in the Sullivan / Community
-College area that might be affecting this. 
+College area that might be affecting this.
 
 ### Summary of analysis
 
