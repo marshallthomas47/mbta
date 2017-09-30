@@ -25,14 +25,14 @@ body {
 
 <body>
 
-<h1 id="mbta-calculations">MBTA Calculations</h1>
+<h1 id="mbta-analysis">MBTA Analysis</h1>
 <p>Marshall Thomas<br />September 30, 2017</p>
 <h2 id="summary">Summary</h2>
 <ul>
 <li>For this analysis, I used data available from the <a href="http://realtime.mbta.com/Portal/Home/Documents">MBTA API</a>. I want to thank the MBTA for making these data publicly available.</li>
 <li>I compared July-September of 2016 to the same time in 2017.</li>
 <li>I focused on rush hour traffic (6:00 AM - 10:00 AM; 4:00 PM - 8:00 PM).</li>
-<li>I used the longest possible trip queries for each line. Practically, this meant querying from the first station to the second-to-last station, so these transit times are one station short of end-to-end. For example, Ashmont northbound is from Ashmont to Davis; while the Orange line southbound is from Oak Grove to Green Street. The MBTA API does not return end-to-end times.</li>
+<li>I queried the longest possible distances for each line. Practically, this meant querying from the first station to the second-to-last station, so these transit times are one station short of end-to-end. For example, Ashmont northbound is from Ashmont to Davis; while the Orange line southbound is from Oak Grove to Green Street. The MBTA API does not return end-to-end trip times.</li>
 </ul>
 <h3 id="delays-by-train-line">Delays by train line</h3>
 <ul>
