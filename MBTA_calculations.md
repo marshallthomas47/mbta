@@ -9,7 +9,7 @@ Summary
 -   For this analysis, I used data available from the MBTA API.
 -   I compared July-September of 2016 to the same time in 2017.
 -   I focused on rush hour traffic (6:00 AM - 10:00 AM; 4:00 PM - 8:00 PM).
--   I used the longest possible trip queries for each line. Practically, this meant querying from the first station to the second-to-last station, so these transit times are one station short of end-to-end.
+-   I used the longest possible trip queries for each line. Practically, this meant querying from the first station to the second-to-last station, so these transit times are one station short of end-to-end. For example, Ashmont northbound is from Ashmont to Davis; while the Orange line southbound is from Oak Grove to Green Street.
 
 ### Delays by train line
 

@@ -51,16 +51,16 @@ URL_query = function(from,to,start_datetime,finish_datetime){
 #Queries for different train lines
 start = "2016-07-01 00:00:00"
 end = "2017-09-30 00:00:00"
-# Orange line southbound (oak grove to green street)
+# Orange line southbound (Oak Grove to Green Street)
 orange_SB = URL_query("70036","70002", start, end)
 write.csv(orange_SB, "OrangeLineSouthBound")
-# Orange line northbound (forest hills to malden center)
+# Orange line northbound (Forest Hills to Malden Center)
 orange_NB = URL_query("70001","70035", start, end)
 write.csv(orange_NB, "OrangeLineNorthBound")
-# Blue line westbound 
+# Blue line westbound (Wonderland to Government Center)
 blue_WB = URL_query("70060","70039", start, end)
 write.csv(blue_WB, "BlueLineWestBound")
-# Blue line eastbound
+# Blue line eastbound (Bowdoin to Revere Beach)
 blue_EB = URL_query("70038","70058", start, end)
 write.csv(blue_EB, "BlueLineEastBound")
 # Red line southbound to Ashmont (Alewife to Shawmut)
