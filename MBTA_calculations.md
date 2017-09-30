@@ -3,12 +3,21 @@ MBTA Calculations
 Marshall Thomas
 September 30, 2017
 
+Summary
+-------
+
+-   For this analysis, I used data available from the MBTA API.
+-   I compared July-September of 2016 to the same time in 2017.
+-   I focused on rush hour traffic (6:00 AM - 10:00 AM; 4:00 PM - 8:00 PM).
+-   I used the longest possible trip queries for each line. Practically, this meant querying from the first station to the second-to-last station, so these transit times are one station short of end-to-end.
+
 ### Delays by train line
 
 -   Summer2016 covers July - September 2016
 -   Summer2017 covers July - September 2017
 -   Delays are for rush hours (6:00 - 10:00 AM and 4:00 - 8:00 PM).
 -   Delays are relative to the MBTA "benchmark" time given for that trip.
+-   **Conclusion: substantially increased delays since last summer on the orange line.**
 
 <!-- -->
 
@@ -26,8 +35,8 @@ September 30, 2017
 
 -   Summer2016 covers July - September 2016
 -   Summer2017 covers July - September 2017
--   Number of trains during rush hours only (6:00 - 10:00 AM and 4:00 - 8:00 PM).
--   Departure times are used for this metric
+-   Number of trains during morning rush hour only (6:00 - 10:00 AM).
+-   **Conclusion: fewer morning trains running on the orange line since last summer (though not by much).**
 
 <!-- -->
 
@@ -47,4 +56,6 @@ September 30, 2017
 
 ### Orange line delays deep dive
 
-![](MBTA_calculations_files/figure-markdown_github-ascii_identifiers/figure2-1.png)
+-   The average number of delays per day this summer is **roughly equivalent to the number of delays on the worst day last summer**.
+-   There are fewer trains running during the morning rush hour on the orange line.
+-   There has been a significant increase in trip times on the orange line. ![](MBTA_calculations_files/figure-markdown_github-ascii_identifiers/figure2-1.png)
