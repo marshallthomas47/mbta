@@ -71,8 +71,7 @@ rush_hourify = function(dataset){
 
 
 ```{r echo = FALSE}
-#Queries parameters for stations
-
+# This pulls dwell data within set date ranges for a stop and binds it together
 
 get_dwells = function(Nstop){
   start17 = "2017-07-01 00:00:00"

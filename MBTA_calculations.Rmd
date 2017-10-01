@@ -39,38 +39,38 @@ theme_set(theme_basic)
 
 ```{r echo=FALSE}
 # Orange line southbound (oak grove to green street)
-orange_SB = read.csv("OrangeLineSouthBound")
+orange_SB = read.csv("./TrainData/OrangeLineSouthBound.csv")
 
 # Orange line northbound (forest hills to malden center)
-orange_NB = read.csv("OrangeLineNorthBound")
+orange_NB = read.csv("./TrainData/OrangeLineNorthBound.csv")
 
 # Blue line westbound 
-blue_WB = read.csv("BlueLineWestBound")
+blue_WB = read.csv("./TrainData/BlueLineWestBound.csv")
 
 # Blue line eastbound
-blue_EB = read.csv("BlueLineEastBound")
+blue_EB = read.csv("./TrainData/BlueLineEastBound.csv")
 
 # Red line southbound to Ashmont (Alewife to Shawmut)
-red_SB_Ash = read.csv("AshmontSouthBound")
+red_SB_Ash = read.csv("./TrainData/AshmontSouthBound.csv")
 
 # Red line southbound to Braintree (Alewife to Quincy Adams)
-red_SB_Brain = read.csv("BraintreeSouthBound")
+red_SB_Brain = read.csv("./TrainData/BraintreeSouthBound.csv")
 
 # Red line northbound from Ashmont (Ashmont to Davis)
-red_NB_Ash = read.csv("AshmontNorthBound")
+red_NB_Ash = read.csv("./TrainData/AshmontNorthBound.csv")
 
 # Red line northbound from Braintree (Braintree to Davis)
-red_NB_Brain = read.csv("BraintreeNorthBound")
+red_NB_Brain = read.csv("./TrainData/BraintreeNorthBound.csv")
 ```
 
 ```{r echo=FALSE}
 # Function that grabs only rush hour data
 rush_hourify = function(dataset){
   dataset$weekdays = dataset$day != "Saturday" & dataset$day != "Sunday"
-  dataset$rushtime = dataset$time > "06:00:00" & dataset$time < "10:00:00"
-  dataset$morning_peak = dataset$rushtime & dataset$weekdays
-  dataset$PMrush = dataset$time > "16:00:00" & dataset$time < "20:00:00" 
-  dataset$afternoon_peak = dataset$PMrush & dataset$weekdays
+  dataset$morning_peak = dataset$time > "06:00:00" & dataset$time < "10:00:00" &
+    dataset$weekdays
+  dataset$afternoon_peak = dataset$time > "16:00:00" & dataset$time < "20:00:00" &
+    dataset$weekdays
   dataset = subset(dataset, dataset$morning_peak | dataset$afternoon_peak)
   return(dataset)}
 
@@ -80,7 +80,6 @@ month_subset = function(dataset){
   dataset$just_date < "2017-10-01"
   dataset$Months2016 = dataset$just_date > "2016-06-30" & 
   dataset$just_date < "2016-10-01"
-
   datanew = subset(dataset, (dataset$Months2017 | dataset$Months2016))
   datanew$range = ifelse(datanew$Months2017, "July-Sept 2017", "July-Sept 2016")
   return(datanew)
@@ -89,14 +88,14 @@ month_subset = function(dataset){
 # Runs the major processing steps of the data
 processor = function(dataset){
   step1 = rush_hourify(dataset)
-  step1$delay = step1$travel_times > (step1$benchmark_times + 300)
   step2 = month_subset(step1)
   return(step2)
 }
 
 # Sets a time cutoff for the delays, calculates a number of delays relative to MBTA benchmark
 delaycalc = function(dataset, delaytime){
-  dataset$delayed = dataset$travel_times > (dataset$benchmark_times + delaytime)
+  dataset$delayed = dataset$travel_time_sec > (dataset$benchmark_travel_time_sec 
+                                               + delaytime)
   delays = dataset %>%
   group_by(just_date) %>% 
   summarise (ndelays = sum(delayed))
@@ -108,7 +107,7 @@ delaycalc = function(dataset, delaytime){
 AMtrainscalc = function(dataset){
   dataset_morning = subset(dataset, dataset$morning_peak)
   Ntrains = dataset_morning %>% group_by(just_date) %>% 
-    summarise (counts = length(travel_times))
+    summarise (counts = length(travel_time_sec))
   Ntrains$daterange = ifelse(Ntrains$just_date > "2017-01-01",
                              "July-Sept 2017","July-Sept 2016")
   return(Ntrains)
@@ -122,7 +121,7 @@ AMtrainscalc = function(dataset){
 
 # Violin plot of travel time
 violinplot = function(dataset, title){
-  plot = ggplot(data = dataset, aes(x = range, y = travel_times)) +
+  plot = ggplot(data = dataset, aes(x = range, y = travel_time_sec)) +
   geom_violin() +
   ylab("Travel time (seconds)") +
   xlab("Date range") +
