@@ -32,6 +32,10 @@ Summary
     ## Ashmont northbound       4.878788  6.7230769
     ## Braintree northbound     7.045455  9.0307692
 
+### Figure showing delays on each train line
+
+![](MBTA_calculations_files/figure-markdown_github-ascii_identifiers/figure1-1.png)
+
 ### Number of trains running by train line
 
 -   Each column shows the average number of trains that ran during the morning commute.
@@ -51,10 +55,6 @@ Summary
     ## Braintree southbound     23.56923   23.98438
     ## Ashmont northbound       26.06154   24.40000
     ## Braintree northbound     27.53846   25.60000
-
-### Figure showing delays on each train line
-
-![](MBTA_calculations_files/figure-markdown_github-ascii_identifiers/figure1-1.png)
 
 ### Orange line delays deep dive
 

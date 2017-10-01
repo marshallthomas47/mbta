@@ -299,6 +299,15 @@ travel time >5 minutes longer than the benchmark counts as a delay.
 Alldelays
 ```
 
+### Figure showing delays on each train line
+
+```{r figure1, fig.height=12, fig.width=7, echo=FALSE}
+grid.arrange(delay_BlueEB, delay_BlueWB, delay_OrangeSB, delay_OrangeNB, 
+             delay_RedSB_Ash, delay_RedNB_Ash, 
+             delay_RedSB_Brain, delay_RedNB_Brain,
+             top = "Delays of more than 5 minutes", ncol=2)
+```
+
 ### Number of trains running by train line
 
 - Each column shows the average number of trains that ran during the morning
@@ -309,14 +318,6 @@ Alldelays
 - **Conclusion: fewer morning trains running on the orange line since last summer (though not by much).**
 ```{r echo=FALSE}
 Allcounts
-```
-
-### Figure showing delays on each train line
-```{r figure1, fig.height=12, fig.width=7, echo=FALSE}
-grid.arrange(delay_BlueEB, delay_BlueWB, delay_OrangeSB, delay_OrangeNB, 
-             delay_RedSB_Ash, delay_RedNB_Ash, 
-             delay_RedSB_Brain, delay_RedNB_Brain,
-             top = "Delays of more than 5 minutes", ncol=2)
 ```
 
 ### Orange line delays deep dive
